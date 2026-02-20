@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar System Explorer</title>
+  <style>
+    :root{
+      --bg0:#04050a;
+      --bg1:#070a14;
+      --panel: rgba(14, 16, 28, 0.72);
+      --panel2: rgba(10, 12, 22, 0.72);
+      --border: rgba(255,255,255,0.12);
+      --border2: rgba(255,255,255,0.18);
+      --text: rgba(240, 244, 255, 0.92);
+      --muted: rgba(240, 244, 255, 0.66);
+      --muted2: rgba(240, 244, 255, 0.48);
+      --accent: #7cf6ff;
+      --accent2:#ffb86b;
+      --danger:#ff5b7a;
+      --shadow: 0 18px 60px rgba(0,0,0,0.55);
+      --radius: 16px;
+    }
+
+    *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 800px at 50% 35%, #0a1430 0%, #050712 55%, #02030a 100%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow:hidden;
+    }
+
+    #root{
+      position:relative;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+    }
+
+    canvas{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      cursor: grab;
+      touch-action: none; /* allow drag without scrolling */
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    canvas.dragging{ cursor: grabbing; }
+
+    .overlay{
+      position:absolute;
+      left:0; right:0;
+      pointer-events:none;
+      z-index: 10;
+    }
+
+    .topbar{
+      top:0;
+      padding: 14px 14px 10px 14px;
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+
+    .card{
+      pointer-events:auto;
+      background: linear-gradient(180deg, rgba(18, 21, 36, 0.78), rgba(10, 12, 22, 0.62));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .brand{
+      padding: 12px 14px;
+      min-width: 240px;
+      max-width: min(740px, calc(100vw - 180px));
+    }
+
+    .titleRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .title{
+      font-size: 15px;
+      letter-spacing: 0.25px;
+      font-weight: 720;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .title .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: radial-gradient(circle at 35% 30%, #fff 0%, var(--accent) 35%, rgba(124,246,255,0.15) 60%, transparent 70%);
+      box-shadow: 0 0 22px rgba(124,246,255,0.35);
+      flex: 0 0 auto;
+    }
+    .subtitle{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .chips{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      padding: 10px 12px;
+      max-width: min(420px, calc(100vw - 280px));
+    }
+    .chip{
+      pointer-events:auto;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: rgba(240,244,255,0.82);
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .chip b{ color: rgba(240,244,255,0.95); font-weight: 750; }
+
+    /* Right info panel */
+    #panel{
+      position:absolute;
+      top: 74px;
+      right: 14px;
+      width: min(380px, calc(100vw - 28px));
+      max-height: calc(100vh - 180px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 220ms ease, opacity 220ms ease;
+      pointer-events:auto;
+    }
+    #panel.hidden{
+      transform: translateY(-10px);
+      opacity: 0;
+      pointer-events:none;
+    }
+    .panelHeader{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 12px 12px 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.00));
+    }
+    .panelTitle{
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+      margin-bottom: 2px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.18);
+      color: rgba(240,244,255,0.82);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .panelMeta{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .iconBtn{
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.18);
+      color: rgba(240,244,255,0.9);
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+    .iconBtn:hover{ transform: translateY(-1px); border-color: rgba(124,246,255,0.45); background: rgba(124,246,255,0.08); }
+    .iconBtn:active{ transform: translateY(0px) scale(0.98); }
+
+    .panelBody{
+      padding: 12px;
+      overflow:auto;
+    }
+    .stats{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 10px 0;
+    }
+    .stat{
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      min-height: 54px;
+    }
+    .k{
+      color: var(--muted2);
+      font-size: 11px;
+      letter-spacing: 0.2px;
+      margin-bottom: 5px;
+    }
+    .v{
+      font-size: 13px;
+      font-weight: 720;
+      color: rgba(240,244,255,0.92);
+      line-height: 1.2;
+    }
+    .desc{
+      color: rgba(240,244,255,0.78);
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 10px 0 0 0;
+    }
+    .tip{
+      margin-top: 10px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px dashed rgba(124,246,255,0.35);
+      background: rgba(124,246,255,0.06);
+      color: rgba(240,244,255,0.78);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .tip b{ color: rgba(240,244,255,0.92); }
+
+    /* Bottom controls */
+    .bottombar{
+      bottom:0;
+      padding: 12px 14px 14px 14px;
+    }
+    .controls{
+      pointer-events:auto;
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(12, 14, 24, 0.78), rgba(8, 10, 18, 0.62));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .control{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      min-width: 170px;
+      flex: 1 1 180px;
+    }
+    .control label{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.15px;
+    }
+    .control label span{
+      color: rgba(240,244,255,0.9);
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+      height: 18px;
+    }
+
+    .btn{
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: rgba(240,244,255,0.92);
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-weight: 760;
+      letter-spacing: 0.2px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      white-space:nowrap;
+      flex: 0 0 auto;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(124,246,255,0.40); background: rgba(124,246,255,0.08); }
+    .btn:active{ transform: translateY(0px) scale(0.985); }
+    .btn.primary{
+      border-color: rgba(255,184,107,0.45);
+      background: linear-gradient(135deg, rgba(255,184,107,0.16), rgba(124,246,255,0.08));
+    }
+    .btn.primary:hover{
+      border-color: rgba(255,184,107,0.70);
+      background: linear-gradient(135deg, rgba(255,184,107,0.22), rgba(124,246,255,0.10));
+    }
+
+    /* Hover tooltip */
+    #hoverTip{
+      position:absolute;
+      z-index: 20;
+      pointer-events:none;
+      left: 0; top: 0;
+      transform: translate(-9999px, -9999px);
+      opacity: 0;
+      transition: opacity 120ms ease;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(10, 12, 20, 0.62);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: rgba(240,244,255,0.90);
+      font-size: 12px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+      white-space:nowrap;
+    }
+    #hoverTip.show{ opacity: 1; }
+
+    /* Mobile layout tweaks */
+    @media (max-width: 860px){
+      .topbar{ flex-direction: column; align-items: stretch; }
+      .chips{ max-width: 100%; justify-content:flex-start; padding: 10px 14px; }
+      .brand{ max-width: 100%; }
+      #panel{
+        left: 14px;
+        right: 14px;
+        top: auto;
+        bottom: 92px;
+        width: auto;
+        max-height: min(46vh, calc(100vh - 170px));
+      }
+      .controls{
+        flex-wrap: wrap;
+      }
+      .control{ min-width: 220px; }
+    }
+
+    @media (max-width: 520px){
+      .control{ min-width: 180px; }
+      .btn{ flex: 1 1 auto; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      #panel, #hoverTip{ transition: none; }
+      .btn{ transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root" aria-label="Solar System Explorer app">
+    <canvas id="space" aria-label="Solar system canvas"></canvas>
+
+    <div class="overlay topbar" aria-hidden="false">
+      <div class="card brand">
+        <div class="titleRow">
+          <div class="title"><span class="dot"></span>Solar System Explorer</div>
+          <span class="badge" id="selBadge" style="display:none;">Selected</span>
+        </div>
+        <div class="subtitle" id="status">Drag to rotate • Scroll to zoom • Click a planet for details</div>
+      </div>
+
+      <div class="card chips">
+        <span class="chip" id="simChip">⏱️ <b id="simTime">Year 1 · Day 0</b></span>
+        <span class="chip">🌀 <b id="speedReadout">1.00×</b></span>
+        <span class="chip">🔍 <b id="zoomReadout">1.00×</b></span>
+      </div>
+    </div>
+
+    <div id="panel" class="card hidden" role="dialog" aria-label="Planet information panel" aria-live="polite">
+      <div class="panelHeader">
+        <div>
+          <div class="panelTitle" id="pName">Select a planet</div>
+          <div class="panelMeta" id="pMeta">Click an orbiting planet to open its program notes.</div>
+        </div>
+        <button class="iconBtn" id="closePanel" aria-label="Close panel">✕</button>
+      </div>
+      <div class="panelBody" id="pBody">
+        <div class="tip">
+          <b>Controls</b><br/>
+          • Drag to rotate your view<br/>
+          • Scroll (or use the slider) to zoom<br/>
+          • Adjust orbit speed to watch the choreography
+        </div>
+      </div>
+    </div>
+
+    <div id="hoverTip" aria-hidden="true"></div>
+
+    <div class="overlay bottombar" aria-hidden="false">
+      <div class="controls">
+        <div class="control">
+          <label for="speed">Orbit speed <span id="speedLabel">1.00×</span></label>
+          <input id="speed" type="range" min="0" max="6" step="0.01" value="1" />
+        </div>
+        <div class="control">
+          <label for="zoom">Zoom <span id="zoomLabel">1.00×</span></label>
+          <input id="zoom" type="range" min="0.40" max="3.00" step="0.01" value="1" />
+        </div>
+        <button class="btn primary" id="playBtn" aria-label="Pause or play simulation">⏸︎ Pause</button>
+        <button class="btn" id="resetBtn" aria-label="Reset view">⟲ Reset view</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('space');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const el = {
+        status: document.getElementById('status'),
+        simTime: document.getElementById('simTime'),
+        speed: document.getElementById('speed'),
+        zoom: document.getElementById('zoom'),
+        speedLabel: document.getElementById('speedLabel'),
+        zoomLabel: document.getElementById('zoomLabel'),
+        speedReadout: document.getElementById('speedReadout'),
+        zoomReadout: document.getElementById('zoomReadout'),
+        playBtn: document.getElementById('playBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        panel: document.getElementById('panel'),
+        closePanel: document.getElementById('closePanel'),
+        pName: document.getElementById('pName'),
+        pMeta: document.getElementById('pMeta'),
+        pBody: document.getElementById('pBody'),
+        hoverTip: document.getElementById('hoverTip'),
+        selBadge: document.getElementById('selBadge'),
+      };
+
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+
+      function hexToRgb(hex){
+        const h = hex.replace('#','').trim();
+        const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+        const n = parseInt(full, 16);
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+      }
+      function mixHex(a, b, t){
+        const A = hexToRgb(a), B = hexToRgb(b);
+        const r = Math.round(lerp(A.r, B.r, t));
+        const g = Math.round(lerp(A.g, B.g, t));
+        const bb = Math.round(lerp(A.b, B.b, t));
+        return `rgb(${r},${g},${bb})`;
+      }
+
+      // --- Planet data (values are approximate; good enough for an explorer UI) ---
+      const PLANETS = [
+        {
+          id:'mercury', name:'Mercury', type:'Terrestrial',
+          au:0.39, periodDays:88.0, incDeg:7.0, moons:0,
+          diameterKm:4879, dayHours:1407.6,
+          color:'#b7b7b7',
+          description:'A fast little world of iron and craters. Days last longer than years here (wild flex).',
+          fact:'Because it has almost no atmosphere, temperatures swing dramatically between day and night.'
+        },
+        {
+          id:'venus', name:'Venus', type:'Terrestrial',
+          au:0.72, periodDays:224.7, incDeg:3.4, moons:0,
+          diameterKm:12104, dayHours: -5832.5,
+          color:'#d9c48c',
+          description:'Similar in size to Earth, but wrapped in a crushing, scorching CO₂ atmosphere.',
+          fact:'It spins backwards compared to most planets — the Sun would rise in the west.'
+        },
+        {
+          id:'earth', name:'Earth', type:'Terrestrial',
+          au:1.00, periodDays:365.25, incDeg:0.0, moons:1,
+          diameterKm:12742, dayHours:23.93,
+          color:'#3fa9f5',
+          description:'Blue oceans, white clouds, one very opinionated biosphere.',
+          fact:'About 71% of the surface is covered by water.'
+        },
+        {
+          id:'mars', name:'Mars', type:'Terrestrial',
+          au:1.52, periodDays:687.0, incDeg:1.9, moons:2,
+          diameterKm:6779, dayHours:24.62,
+          color:'#d65a31',
+          description:'Dusty deserts, towering volcanoes, and polar caps — a world that keeps teasing us with “maybe.”',
+          fact:'Olympus Mons is the largest volcano in the solar system.'
+        },
+        {
+          id:'jupiter', name:'Jupiter', type:'Gas Giant',
+          au:5.20, periodDays:4332.6, incDeg:1.3, moons:95,
+          diameterKm:139820, dayHours:9.93,
+          color:'#d2a679',
+          description:'A massive ball of gas with dramatic bands and storms. Basically the bouncer of the inner solar system.',
+          fact:'The Great Red Spot is a storm larger than Earth that has raged for centuries.'
+        },
+        {
+          id:'saturn', name:'Saturn', type:'Gas Giant',
+          au:9.58, periodDays:10759.0, incDeg:2.5, moons:140,
+          diameterKm:116460, dayHours:10.7,
+          color:'#e8d9a9',
+          description:'The ring superstar. The rings are wide but incredibly thin — cosmic vinyl.',
+          fact:'Its average density is less than water; in a big enough tub, Saturn would float.'
+        },
+        {
+          id:'uranus', name:'Uranus', type:'Ice Giant',
+          au:19.2, periodDays:30688.5, incDeg:0.8, moons:27,
+          diameterKm:50724, dayHours:17.2,
+          color:'#8adfe0',
+          description:'A cold, blue-green giant that rolls around the Sun on its side.',
+          fact:'Its extreme axial tilt makes its seasons last decades.'
+        },
+        {
+          id:'neptune', name:'Neptune', type:'Ice Giant',
+          au:30.05, periodDays:60182.0, incDeg:1.8, moons:14,
+          diameterKm:49244, dayHours:16.1,
+          color:'#3b5bdb',
+          description:'Deep blue, windy, and distant — a planet that feels like the final act.',
+          fact:'Neptune has some of the fastest winds in the solar system.'
+        }
+      ];
+
+      // Visual tuning
+      const ORBIT_EXP = 0.55;
+      const ORBIT_BASE = 18; // scene units
+      const CAMERA_DIST = 235; // scene units
+      const BASE_DAYS_PER_SEC = 18; // at 1.0×, how fast sim time advances
+
+      // Assign derived visuals
+      for (const p of PLANETS){
+        p.orbitR = ORBIT_BASE * Math.pow(p.au, ORBIT_EXP);
+        p.inc = (p.incDeg || 0) * Math.PI / 180;
+        // Good-looking, non-physical sizes
+        const sizeMap = {
+          mercury: 0.80, venus: 1.05, earth: 1.05, mars: 0.92,
+          jupiter: 2.30, saturn: 2.05, uranus: 1.65, neptune: 1.62
+        };
+        p.rWorld = sizeMap[p.id] || 1.0;
+        p.phase = Math.random() * Math.PI * 2;
+        p.hl = mixHex(p.color, '#ffffff', 0.35);
+        p.sh = mixHex(p.color, '#000000', 0.65);
+        p.glow = mixHex(p.color, '#7cf6ff', 0.18);
+      }
+
+      // Starfield (normalized positions; wrap with parallax)
+      const STAR_COUNT = 420;
+      const stars = Array.from({ length: STAR_COUNT }, (_, i) => {
+        const layer = Math.random() < 0.55 ? 0 : (Math.random() < 0.75 ? 1 : 2);
+        return {
+          nx: Math.random(),
+          ny: Math.random(),
+          s: lerp(0.6, 2.2, Math.pow(Math.random(), 1.8)) * (layer === 2 ? 1.2 : 1.0),
+          a: lerp(0.18, 0.85, Math.random()) * (layer === 2 ? 0.95 : 1.0),
+          tw: Math.random() * Math.PI * 2,
+          layer,
+        };
+      });
+
+      const state = {
+        w: 0, h: 0, dpr: 1,
+        yaw: 0.85,
+        pitch: -0.33,
+        zoom: 1.0,
+        speed: 1.0,
+        paused: false,
+        timeDays: 0,
+        pointer: { x: 0, y: 0, inside: false, down: false, drag: false, id: null, lastX: 0, lastY: 0, startX: 0, startY: 0, dist: 0, lastT: 0 },
+        inertia: { vYaw: 0, vPitch: 0 },
+        selectedId: null,
+        hoverId: null,
+        projections: [],
+        lastFrameT: 0,
+      };
+
+      function fitCanvas(){
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        state.dpr = dpr;
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        state.w = rect.width;
+        state.h = rect.height;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function rotY(v, a){
+        const c = Math.cos(a), s = Math.sin(a);
+        return { x: v.x * c + v.z * s, y: v.y, z: -v.x * s + v.z * c };
+      }
+      function rotX(v, a){
+        const c = Math.cos(a), s = Math.sin(a);
+        return { x: v.x, y: v.y * c - v.z * s, z: v.y * s + v.z * c };
+      }
+      function worldToCamera(v){
+        let t = rotY(v, state.yaw);
+        t = rotX(t, state.pitch);
+        return t;
+      }
+      function project(vCam, cx, cy, f){
+        const z = vCam.z + CAMERA_DIST;
+        if (z <= 1) return null;
+        const s = f / z;
+        return { x: cx + vCam.x * s, y: cy + vCam.y * s, s, z };
+      }
+
+      function fmt(n){
+        const abs = Math.abs(n);
+        if (abs >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (abs >= 1000) return (n / 1000).toFixed(1) + 'k';
+        return String(Math.round(n));
+      }
+
+      function simTimeLabel(days){
+        const year = Math.floor(days / 365.25) + 1;
+        const day = Math.floor(days % 365.25);
+        return `Year ${year} · Day ${day}`;
+      }
+
+      function updateReadouts(){
+        el.speedLabel.textContent = `${state.speed.toFixed(2)}×`;
+        el.zoomLabel.textContent = `${state.zoom.toFixed(2)}×`;
+        el.speedReadout.textContent = `${state.speed.toFixed(2)}×`;
+        el.zoomReadout.textContent = `${state.zoom.toFixed(2)}×`;
+        el.simTime.textContent = simTimeLabel(state.timeDays);
+      }
+
+      function openPanelFor(planet){
+        state.selectedId = planet ? planet.id : null;
+        el.selBadge.style.display = planet ? 'inline-flex' : 'none';
+
+        if (!planet){
+          el.panel.classList.add('hidden');
+          return;
+        }
+
+        const year = (planet.periodDays / 365.25);
+        const dayLen = planet.dayHours < 0
+          ? `${Math.abs(planet.dayHours / 24).toFixed(1)} Earth days (retrograde)`
+          : `${(planet.dayHours).toFixed(2)} h`;
+
+        el.pName.innerHTML = `${planet.name} <span class="badge">${planet.type}</span>`;
+        el.pMeta.textContent = `${planet.au.toFixed(2)} AU from the Sun · ~${year.toFixed(2)} Earth years per orbit`;
+
+        el.pBody.innerHTML = `
+          <div class="stats">
+            <div class="stat"><div class="k">Distance</div><div class="v">${planet.au.toFixed(2)} AU</div></div>
+            <div class="stat"><div class="k">Year length</div><div class="v">${fmt(planet.periodDays)} days</div></div>
+            <div class="stat"><div class="k">Diameter</div><div class="v">${fmt(planet.diameterKm)} km</div></div>
+            <div class="stat"><div class="k">Day length</div><div class="v">${dayLen}</div></div>
+            <div class="stat"><div class="k">Moons</div><div class="v">${planet.moons}</div></div>
+            <div class="stat"><div class="k">Inclination</div><div class="v">${planet.incDeg.toFixed(1)}°</div></div>
+          </div>
+          <p class="desc">${planet.description}</p>
+          <p class="desc"><b style="color: rgba(240,244,255,0.92);">Fun fact:</b> ${planet.fact}</p>
+          <div class="tip"><b>Try this:</b> Slow the orbit speed and drag the view so the selected planet crosses in front of the Sun.</div>
+        `;
+        el.panel.classList.remove('hidden');
+      }
+
+      function pickPlanetAt(x, y){
+        // Prefer closest-to-camera among hits
+        const hits = state.projections
+          .filter(o => o.kind === 'planet')
+          .map(o => {
+            const dx = x - o.x, dy = y - o.y;
+            const d = Math.hypot(dx, dy);
+            return { o, d };
+          })
+          .filter(h => h.d <= (h.o.r + 8));
+
+        if (!hits.length) return null;
+        hits.sort((a, b) => (a.o.z - b.o.z) || (a.d - b.d)); // smaller z = closer
+        return hits[0].o.planet;
+      }
+
+      function setHoverTip(planet, px, py){
+        if (!planet){
+          el.hoverTip.classList.remove('show');
+          el.hoverTip.style.transform = `translate(-9999px,-9999px)`;
+          return;
+        }
+        el.hoverTip.textContent = `${planet.name} • click for info`;
+        el.hoverTip.style.transform = `translate(${Math.round(px + 14)}px, ${Math.round(py - 14)}px)`;
+        el.hoverTip.classList.add('show');
+      }
+
+      function drawStarfield(w, h){
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#050712');
+        bg.addColorStop(0.45, '#040512');
+        bg.addColorStop(1, '#02030a');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        // Nebula haze (subtle)
+        const cx = w * 0.52, cy = h * 0.40;
+        const haze = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.65);
+        const a = 0.12 + 0.08 * Math.max(0, Math.cos(state.pitch));
+        haze.addColorStop(0, `rgba(124,246,255,${a * 0.55})`);
+        haze.addColorStop(0.35, `rgba(255,184,107,${a * 0.18})`);
+        haze.addColorStop(0.75, 'rgba(10,12,22,0)');
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, 0, w, h);
+
+        // Stars with parallax
+        const yaw = state.yaw, pitch = state.pitch;
+        for (const s of stars){
+          const layerFactor = s.layer === 0 ? 0.12 : (s.layer === 1 ? 0.22 : 0.36);
+          let x = (s.nx * w + yaw * 120 * layerFactor) % w;
+          let y = (s.ny * h + pitch * 120 * layerFactor) % h;
+          if (x < 0) x += w;
+          if (y < 0) y += h;
+          const tw = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(state.lastFrameT * 0.0015 + s.tw));
+          const alpha = clamp(s.a * (0.75 + 0.25 * tw), 0, 1);
+          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+          ctx.fillRect(x, y, s.s, s.s);
+        }
+      }
+
+      function drawSun(cx, cy, f){
+        const sunCam = worldToCamera({ x: 0, y: 0, z: 0 });
+        const pr = project(sunCam, cx, cy, f);
+        if (!pr) return;
+
+        const rWorld = 6.6;
+        const r = rWorld * pr.s;
+
+        // Corona
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const corona = ctx.createRadialGradient(pr.x, pr.y, r * 0.2, pr.x, pr.y, r * 4.8);
+        corona.addColorStop(0, 'rgba(255,230,170,0.40)');
+        corona.addColorStop(0.25, 'rgba(255,200,120,0.18)');
+        corona.addColorStop(0.55, 'rgba(124,246,255,0.08)');
+        corona.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = corona;
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, r * 4.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Sun disk
+        const g = ctx.createRadialGradient(pr.x - r * 0.25, pr.y - r * 0.2, r * 0.2, pr.x, pr.y, r);
+        g.addColorStop(0, 'rgba(255,255,235,0.98)');
+        g.addColorStop(0.55, 'rgba(255,202,120,0.98)');
+        g.addColorStop(1, 'rgba(255,156,72,0.98)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Subtle rim
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, r + 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawOrbit(planet, cx, cy, f){
+        const seg = 132;
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i <= seg; i++){
+          const t = (i / seg) * Math.PI * 2;
+          // orbit in XZ plane, then inclination around X (tilts Y/Z)
+          let v = { x: planet.orbitR * Math.cos(t), y: 0, z: planet.orbitR * Math.sin(t) };
+          if (planet.inc){
+            const c = Math.cos(planet.inc), s = Math.sin(planet.inc);
+            const y = v.y * c - v.z * s;
+            const z = v.y * s + v.z * c;
+            v = { x: v.x, y, z };
+          }
+          const cam = worldToCamera(v);
+          const p = project(cam, cx, cy, f);
+          if (!p) continue;
+          if (!started){
+            ctx.moveTo(p.x, p.y);
+            started = true;
+          } else {
+            ctx.lineTo(p.x, p.y);
+          }
+        }
+        const base = planet.color;
+        ctx.strokeStyle = `rgba(${hexToRgb(base).r},${hexToRgb(base).g},${hexToRgb(base).b},0.14)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Small orbit label tick (very subtle)
+        ctx.save();
+        ctx.globalAlpha = 0.10;
+        ctx.setLineDash([4, 6]);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlanetBall(planet, px, py, r, cx, cy, isSelected, isHover){
+        // Glow
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const glow = ctx.createRadialGradient(px, py, r * 0.3, px, py, r * 3.0);
+        glow.addColorStop(0, `rgba(${hexToRgb(planet.color).r},${hexToRgb(planet.color).g},${hexToRgb(planet.color).b},0.24)`);
+        glow.addColorStop(0.35, `rgba(124,246,255,${0.10 + (isSelected ? 0.08 : 0)})`);
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 3.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Shading based on light direction to Sun (Sun is at center)
+        const lx = cx - px, ly = cy - py;
+        const llen = Math.max(1e-6, Math.hypot(lx, ly));
+        const dx = lx / llen, dy = ly / llen;
+
+        const hx = px + dx * r * 0.35;
+        const hy = py + dy * r * 0.35;
+        const g = ctx.createRadialGradient(hx, hy, r * 0.12, px, py, r);
+        g.addColorStop(0, planet.hl);
+        g.addColorStop(0.55, planet.color);
+        g.addColorStop(1, planet.sh);
+
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Atmosphere/rim
+        ctx.strokeStyle = isSelected
+          ? 'rgba(124,246,255,0.85)'
+          : (isHover ? 'rgba(255,184,107,0.65)' : 'rgba(255,255,255,0.16)');
+        ctx.lineWidth = Math.max(1, r * (isSelected ? 0.12 : 0.08));
+        ctx.beginPath();
+        ctx.arc(px, py, r + 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Selection pulse ring
+        if (isSelected){
+          const t = (state.lastFrameT * 0.001) % (Math.PI * 2);
+          const rr = r * (1.7 + 0.12 * Math.sin(t * 2));
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = 'rgba(124,246,255,0.35)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(px, py, rr, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawSaturnRings(px, py, r, camZ){
+        // Simple stylized rings (screen-space ellipse), with tilt based on camera pitch/yaw
+        const tilt = clamp(0.25 + 0.55 * Math.abs(Math.cos(state.pitch)), 0.2, 0.8);
+        const rot = state.yaw * 0.55 + 0.9;
+        const a = r * 2.2;
+        const b = a * tilt * 0.42;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+
+        // back ring (behind planet)
+        ctx.globalAlpha = 0.38;
+        ctx.strokeStyle = 'rgba(255,240,210,0.45)';
+        ctx.lineWidth = Math.max(1.2, r * 0.15);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, a, b, 0, Math.PI * 0.15, Math.PI * 1.15);
+        ctx.stroke();
+
+        // front ring (in front)
+        ctx.globalAlpha = 0.52;
+        ctx.strokeStyle = 'rgba(255,210,160,0.55)';
+        ctx.lineWidth = Math.max(1.2, r * 0.17);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, a, b, 0, Math.PI * 1.15, Math.PI * 2.15);
+        ctx.stroke();
+
+        // subtle inner ring
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = Math.max(1.0, r * 0.10);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, a * 0.78, b * 0.78, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function render(t){
+        state.lastFrameT = t;
+
+        const w = state.w, h = state.h;
+        const cx = w * 0.50;
+        const cy = h * 0.56; // a touch lower to keep UI clear
+        const f = state.zoom * Math.min(w, h) * 0.92;
+
+        // Time update
+        const dt = clamp((t - (state._lt || t)) / 1000, 0, 0.05);
+        state._lt = t;
+
+        if (!state.pointer.down){
+          // inertia
+          const damp = Math.exp(-dt * 4.6);
+          state.yaw += state.inertia.vYaw * dt;
+          state.pitch += state.inertia.vPitch * dt;
+          state.inertia.vYaw *= damp;
+          state.inertia.vPitch *= damp;
+          if (Math.abs(state.inertia.vYaw) < 0.0005) state.inertia.vYaw = 0;
+          if (Math.abs(state.inertia.vPitch) < 0.0005) state.inertia.vPitch = 0;
+        }
+
+        state.pitch = clamp(state.pitch, -1.15, 1.15);
+        if (Math.abs(state.pitch) >= 1.149) state.inertia.vPitch = 0;
+
+        if (!state.paused){
+          state.timeDays += dt * BASE_DAYS_PER_SEC * state.speed;
+        }
+
+        updateReadouts();
+
+        // Draw background
+        drawStarfield(w, h);
+
+        // Orbits
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        for (const p of PLANETS) drawOrbit(p, cx, cy, f);
+        ctx.restore();
+
+        // Compute projections
+        const objs = [];
+
+        // Sun as depth reference
+        {
+          const cam = worldToCamera({ x: 0, y: 0, z: 0 });
+          const pr = project(cam, cx, cy, f);
+          if (pr){
+            objs.push({ kind:'sun', x: pr.x, y: pr.y, z: pr.z, s: pr.s, r: 6.6 * pr.s });
+          }
+        }
+
+        for (const p of PLANETS){
+          const omega = (Math.PI * 2) / p.periodDays;
+          const theta = p.phase + state.timeDays * omega;
+
+          let v = { x: p.orbitR * Math.cos(theta), y: 0, z: p.orbitR * Math.sin(theta) };
+          if (p.inc){
+            const c = Math.cos(p.inc), s = Math.sin(p.inc);
+            const y = v.y * c - v.z * s;
+            const z = v.y * s + v.z * c;
+            v = { x: v.x, y, z };
+          }
+
+          const cam = worldToCamera(v);
+          const pr = project(cam, cx, cy, f);
+          if (!pr) continue;
+
+          const r = p.rWorld * pr.s;
+          objs.push({ kind:'planet', planet: p, x: pr.x, y: pr.y, z: pr.z, s: pr.s, r });
+        }
+
+        // Sort by depth (far -> near)
+        objs.sort((a, b) => (b.z - a.z));
+
+        // Store projections for picking
+        state.projections = objs.filter(o => o.kind === 'planet' || o.kind === 'sun');
+
+        // Draw bodies
+        for (const o of objs){
+          if (o.kind === 'sun'){
+            drawSun(cx, cy, f);
+            continue;
+          }
+          const p = o.planet;
+          const isSelected = state.selectedId === p.id;
+          const isHover = state.hoverId === p.id;
+
+          if (p.id === 'saturn'){
+            drawSaturnRings(o.x, o.y, o.r, o.z);
+          }
+          drawPlanetBall(p, o.x, o.y, o.r, cx, cy, isSelected, isHover);
+
+          // Label selected planet (subtle)
+          if (isSelected){
+            ctx.save();
+            ctx.font = `600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+            ctx.fillStyle = 'rgba(240,244,255,0.86)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 8;
+            ctx.fillText(p.name, o.x, o.y + o.r + 10);
+            ctx.restore();
+          }
+        }
+
+        // Foreground vignette
+        const vg = ctx.createRadialGradient(cx, cy, Math.min(w,h) * 0.15, cx, cy, Math.hypot(w, h) * 0.55);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(0.65, 'rgba(0,0,0,0.08)');
+        vg.addColorStop(1, 'rgba(0,0,0,0.58)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, w, h);
+
+        // Hover detection based on current projections
+        if (state.pointer.inside && !state.pointer.down){
+          const planet = pickPlanetAt(state.pointer.x, state.pointer.y);
+          state.hoverId = planet ? planet.id : null;
+
+          if (planet){
+            canvas.style.cursor = 'pointer';
+            setHoverTip(planet, state.pointer.x, state.pointer.y);
+          } else {
+            canvas.style.cursor = 'grab';
+            setHoverTip(null);
+          }
+        } else if (state.pointer.down){
+          setHoverTip(null);
+        }
+
+        requestAnimationFrame(render);
+      }
+
+      // --- Interaction ---
+      function canvasPointFromEvent(e){
+        const r = canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      }
+
+      canvas.addEventListener('pointerenter', () => { state.pointer.inside = true; });
+      canvas.addEventListener('pointerleave', () => { state.pointer.inside = false; state.hoverId = null; setHoverTip(null); canvas.style.cursor = 'grab'; });
+
+      canvas.addEventListener('pointerdown', (e) => {
+        const p = canvasPointFromEvent(e);
+        state.pointer.down = true;
+        state.pointer.drag = false;
+        state.pointer.id = e.pointerId;
+        state.pointer.startX = state.pointer.lastX = state.pointer.x = p.x;
+        state.pointer.startY = state.pointer.lastY = state.pointer.y = p.y;
+        state.pointer.dist = 0;
+        state.pointer.lastT = performance.now();
+
+        state.inertia.vYaw = 0;
+        state.inertia.vPitch = 0;
+
+        canvas.setPointerCapture(e.pointerId);
+        canvas.classList.add('dragging');
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        const p = canvasPointFromEvent(e);
+        state.pointer.x = p.x;
+        state.pointer.y = p.y;
+
+        if (!state.pointer.down || state.pointer.id !== e.pointerId) return;
+
+        const dx = p.x - state.pointer.lastX;
+        const dy = p.y - state.pointer.lastY;
+        state.pointer.lastX = p.x;
+        state.pointer.lastY = p.y;
+
+        state.pointer.dist += Math.abs(dx) + Math.abs(dy);
+        if (state.pointer.dist > 6) state.pointer.drag = true;
+
+        const now = performance.now();
+        const dt = Math.max(0.001, (now - state.pointer.lastT) / 1000);
+        state.pointer.lastT = now;
+
+        const rotSpeed = 0.0060;
+        state.yaw += dx * rotSpeed;
+        state.pitch += dy * rotSpeed;
+        state.pitch = clamp(state.pitch, -1.15, 1.15);
+
+        // inertia (rad/s)
+        state.inertia.vYaw = (dx * rotSpeed) / dt;
+        state.inertia.vPitch = (dy * rotSpeed) / dt;
+      });
+
+      function endPointer(e){
+        if (state.pointer.id !== e.pointerId) return;
+
+        const wasDrag = state.pointer.drag;
+        state.pointer.down = false;
+        state.pointer.id = null;
+        canvas.classList.remove('dragging');
+
+        // Click selection if not dragging
+        if (!wasDrag){
+          const p = canvasPointFromEvent(e);
+          const planet = pickPlanetAt(p.x, p.y);
+          if (planet){
+            openPanelFor(planet);
+          } else {
+            // Click empty space closes panel but keeps selection state off
+            state.selectedId = null;
+            el.selBadge.style.display = 'none';
+            el.panel.classList.add('hidden');
+          }
+        }
+      }
+
+      canvas.addEventListener('pointerup', endPointer);
+      canvas.addEventListener('pointercancel', endPointer);
+
+      // Zoom with wheel (canvas only)
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = clamp(e.deltaY, -120, 120);
+        const k = Math.exp(-delta * 0.0012);
+        state.zoom = clamp(state.zoom * k, 0.40, 3.00);
+        el.zoom.value = String(state.zoom);
+        updateReadouts();
+      }, { passive: false });
+
+      // UI controls
+      el.speed.addEventListener('input', () => {
+        state.speed = parseFloat(el.speed.value);
+        updateReadouts();
+      });
+
+      el.zoom.addEventListener('input', () => {
+        state.zoom = parseFloat(el.zoom.value);
+        updateReadouts();
+      });
+
+      el.playBtn.addEventListener('click', () => {
+        state.paused = !state.paused;
+        el.playBtn.textContent = state.paused ? '▶︎ Play' : '⏸︎ Pause';
+        el.status.textContent = state.paused
+          ? 'Paused • Drag to rotate • Scroll to zoom • Click a planet for details'
+          : 'Drag to rotate • Scroll to zoom • Click a planet for details';
+      });
+
+      el.resetBtn.addEventListener('click', () => {
+        state.yaw = 0.85;
+        state.pitch = -0.33;
+        state.zoom = 1.0;
+        state.inertia.vYaw = 0;
+        state.inertia.vPitch = 0;
+        el.zoom.value = String(state.zoom);
+        updateReadouts();
+      });
+
+      el.closePanel.addEventListener('click', () => {
+        state.selectedId = null;
+        el.selBadge.style.display = 'none';
+        el.panel.classList.add('hidden');
+      });
+
+      // Keyboard (optional but nice)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === ' '){
+          e.preventDefault();
+          el.playBtn.click();
+        } else if (e.key === 'Escape'){
+          el.closePanel.click();
+        } else if (e.key === '+' || e.key === '='){
+          state.zoom = clamp(state.zoom * 1.06, 0.40, 3.00);
+          el.zoom.value = String(state.zoom);
+          updateReadouts();
+        } else if (e.key === '-' || e.key === '_'){
+          state.zoom = clamp(state.zoom / 1.06, 0.40, 3.00);
+          el.zoom.value = String(state.zoom);
+          updateReadouts();
+        }
+      });
+
+      // Start
+      fitCanvas();
+      updateReadouts();
+      requestAnimationFrame(render);
+
+      // Resize handling
+      window.addEventListener('resize', () => {
+        fitCanvas();
+      });
+
+      // Small initial hint
+      setTimeout(() => {
+        if (!state.selectedId){
+          el.panel.classList.remove('hidden');
+          el.pName.textContent = 'Select a planet';
+          el.pMeta.textContent = 'Click an orbiting planet to open its program notes.';
+        }
+      }, 120);
+    })();
+  </script>
+</body>
+</html>
